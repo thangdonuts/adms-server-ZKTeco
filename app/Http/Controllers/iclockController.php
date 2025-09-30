@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\Attendance;
+use App\Models\DeviceUser;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -54,8 +55,8 @@ public function handshake(Request $request)
     // setting timezone
     // request absensi
     public function receiveRecords(Request $request)
-    {   
-        
+    {
+
         //DB::connection()->enableQueryLog();
         $content['url'] = json_encode($request->all());
         $content['data'] = $request->getContent();;
@@ -76,7 +77,52 @@ public function handshake(Request $request)
                 }
                 return "OK: ".$tot;
             }
-            //attendance
+            // device users push (table: USER or USERINFO)
+            if (in_array(strtoupper((string) $request->input('table')), ['USER', 'USERINFO'])) {
+                foreach ($arr as $rey) {
+                    if (empty($rey)) {
+                        continue;
+                    }
+                    $tokens = explode("\t", trim($rey));
+                    $kv = [];
+                    $positional = [];
+                    foreach ($tokens as $tok) {
+                        if (str_contains($tok, '=')) {
+                            [$k, $v] = array_pad(explode('=', $tok, 2), 2, null);
+                            $kv[strtolower(trim($k))] = trim((string) $v);
+                        } else {
+                            $positional[] = trim($tok);
+                        }
+                    }
+
+                    // map values from either key-value or positional formats
+                    $userId = $kv['pin'] ?? $positional[0] ?? null;
+                    if (!$userId) { continue; }
+                    $name = $kv['name'] ?? $positional[1] ?? null;
+                    $priv = isset($kv['pri']) ? (int) $kv['pri'] : (isset($positional[2]) ? (int) $positional[2] : null);
+                    $card = $kv['card'] ?? $kv['cardno'] ?? $positional[3] ?? null;
+                    $passwd = $kv['passwd'] ?? $kv['password'] ?? $positional[4] ?? null;
+                    $group = $kv['grp'] ?? $kv['group'] ?? $positional[5] ?? null;
+                    $tz = $kv['tz'] ?? $kv['timezone'] ?? $positional[6] ?? null;
+
+                    DeviceUser::updateOrCreate(
+                        ['sn' => (string) $request->input('SN'), 'user_id' => (string) $userId],
+                        [
+                            'name' => $name,
+                            'card_no' => $card,
+                            'password' => $passwd,
+                            'privilege' => $priv,
+                            'group' => $group,
+                            'timezone' => $tz,
+                            'raw_payload' => json_encode(['line' => $rey]),
+                        ]
+                    );
+                    $tot++;
+                }
+                return "OK: " . $tot;
+            }
+
+            // attendance records (table: ATTLOG)
             foreach ($arr as $rey) {
                 // $data = preg_split('/\s+/', trim($rey));
                 if(empty($rey)){

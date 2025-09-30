@@ -61,6 +61,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ route('users.index') }}">Users</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('device_users.index') }}">Device Users</a>
+                    </li>
                 </ul>
             </div>
             <span class="navbar-text d-none d-lg-block">

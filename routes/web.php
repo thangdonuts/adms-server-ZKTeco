@@ -16,6 +16,7 @@ use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\AbsensiSholatController;
 use App\Http\Controllers\iclockController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DeviceUserController;
 
 
 Route::get('devices', [DeviceController::class, 'Index'])->name('devices.index');
@@ -25,6 +26,9 @@ Route::get('attendance', [DeviceController::class, 'Attendance'])->name('devices
 
 // users
 Route::get('users', [UserController::class, 'Index'])->name('users.index');
+
+// device users (synced from devices via ADMS)
+Route::get('device-users', [DeviceUserController::class, 'index'])->name('device_users.index');
 
 
 // handshake
