@@ -56,7 +56,6 @@ public function handshake(Request $request)
     // request absensi
     public function receiveRecords(Request $request)
     {
-
         //DB::connection()->enableQueryLog();
         $content['url'] = json_encode($request->all());
         $content['data'] = $request->getContent();;
@@ -64,7 +63,8 @@ public function handshake(Request $request)
         try {
             // $post_content = $request->getContent();
             //$arr = explode("\n", $post_content);
-            $arr = preg_split('/\\r\\n|\\r|,|\\n/', $request->getContent());
+            // split by new lines only (comma may appear inside a record)
+            $arr = preg_split('/\\r\\n|\\r|\\n/', $request->getContent());
             //$tot = count($arr);
             $tot = 0;
             //operation log
@@ -128,24 +128,34 @@ public function handshake(Request $request)
                 if(empty($rey)){
                     continue;
                 }
-                    // $data = preg_split('/\s+/', trim($rey));
-                    $data = explode("\t",$rey);
-                    //dd($data);
-                    $q['sn'] = $request->input('SN');
-                    $q['table'] = $request->input('table');
-                    $q['stamp'] = $request->input('Stamp');
-                    $q['employee_id'] = $data[0];
-                    $q['timestamp'] = $data[1];
-                    $q['status1'] = $this->validateAndFormatInteger($data[2] ?? null);
-                    $q['status2'] = $this->validateAndFormatInteger($data[3] ?? null);
-                    $q['status3'] = $this->validateAndFormatInteger($data[4] ?? null);
-                    $q['status4'] = $this->validateAndFormatInteger($data[5] ?? null);
-                    $q['status5'] = $this->validateAndFormatInteger($data[6] ?? null);
-                    $q['created_at'] = now();
-                    $q['updated_at'] = now();
-                    //dd($q);
-                    DB::table('attendances')->insert($q);
-                    $tot++;
+                $line = trim($rey);
+                // Try multiple separators to be robust across firmware variants
+                $data = explode("\t", $line);
+                if (count($data) < 2) {
+                    $data = explode(",", $line);
+                }
+                if (count($data) < 2) {
+                    $data = preg_split('/\s+/', $line);
+                }
+                if (count($data) < 2) {
+                    continue; // cannot parse
+                }
+                //dd($data);
+                $q['sn'] = $request->input('SN');
+                $q['table'] = $request->input('table');
+                $q['stamp'] = $request->input('Stamp');
+                $q['employee_id'] = $data[0];
+                $q['timestamp'] = $data[1];
+                $q['status1'] = $this->validateAndFormatInteger($data[2] ?? null);
+                $q['status2'] = $this->validateAndFormatInteger($data[3] ?? null);
+                $q['status3'] = $this->validateAndFormatInteger($data[4] ?? null);
+                $q['status4'] = $this->validateAndFormatInteger($data[5] ?? null);
+                $q['status5'] = $this->validateAndFormatInteger($data[6] ?? null);
+                $q['created_at'] = now();
+                $q['updated_at'] = now();
+                //dd($q);
+                DB::table('attendances')->insert($q);
+                $tot++;
                 // dd(DB::getQueryLog());
             }
             return "OK: ".$tot;
@@ -163,9 +173,9 @@ public function handshake(Request $request)
     }
     public function getrequest(Request $request)
     {
-        // $r = "GET OPTION FROM: ".$request->SN."\nStamp=".strtotime('now')."\nOpStamp=".strtotime('now')."\nErrorDelay=60\nDelay=30\nResLogDay=18250\nResLogDelCount=10000\nResLogCount=50000\nTransTimes=00:00;14:05\nTransInterval=1\nTransFlag=1111000000\nRealtime=1\nEncrypt=0";
-
-        return "OK";
+        // Trả về lệnh để thiết bị gửi danh sách user về server
+        // Thiết bị sẽ POST /iclock/cdata với table=USERINFO sau khi nhận lệnh này
+        return "GET USERINFO\r\n";
     }
     private function validateAndFormatInteger($value)
     {
